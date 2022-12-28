@@ -1,3 +1,4 @@
+import json
 import zipfile
 import os
 
@@ -16,6 +17,7 @@ from .models import Book, BookLibPath
 from rest_framework.viewsets import ModelViewSet
 
 from .serializers import BookSerializer, BookLibPathSerializer
+from send2trash import send2trash
 
 
 def index(request):
@@ -27,7 +29,7 @@ class CustomPageNumberPagination(PageNumberPagination):
 
 
 class BookViewSet(ModelViewSet):
-    queryset = Book.objects.all()
+    queryset = Book.objects.all().order_by('id')
     serializer_class = BookSerializer
     pagination_class = CustomPageNumberPagination
 
@@ -72,7 +74,8 @@ class BookViewSet(ModelViewSet):
                             lastID += 1
                             self.generateCover(os.path.join(root, filename), lastID)
                             create_bulk.append(Book(title=filename, path=root))
-                Book.objects.bulk_create(create_bulk)
+                if create_bulk:
+                    Book.objects.bulk_create(create_bulk)
 
     @action(methods=['get'], detail=False)
     def refresh(self, request):
@@ -126,12 +129,27 @@ class BookViewSet(ModelViewSet):
         # return HttpResponse(bookZip.read(picList[page - 1]), content_type='image/webp')
         return HttpResponse(bookZip.read(templist[page - 1]), content_type='image/jpeg')
 
+    @action(methods=['DELETE'], detail=True)
+    def bookDelete(self, request, pk):
+        try:
+            book = Book.objects.get(id=pk)
+        except Book.DoesNotExist:
+            return Response('no exist')
+        ser = BookSerializer(book)
+        if os.path.isfile(os.path.join(ser.data.get('path'), ser.data.get('title') + '.zip')):
+            # os.remove(ser.data.get('path'))
+            send2trash(os.path.join(ser.data.get('path'), ser.data.get('title') + '.zip'))
+            if os.path.isfile(f'./static/covers/{pk}.webp'):
+                send2trash(f'./static/covers/{pk}.webp')
+            book.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT, data='delete success')
+
 
 class LibCustomPageNumberPagination(PageNumberPagination):
     page_size = 20
 
 
 class BookLibPathViewSet(ModelViewSet):
-    queryset = BookLibPath.objects.all()
+    queryset = BookLibPath.objects.all().order_by('id')
     serializer_class = BookLibPathSerializer
     pagination_class = LibCustomPageNumberPagination
