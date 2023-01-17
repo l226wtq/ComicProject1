@@ -12,7 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
-from djangoProject1.settings import STATICFILES_DIRS, BASE_DIR
+# from djangoProject1.settings import STATICFILES_DIRS, BASE_DIR
 from .models import Book, BookLibPath
 from rest_framework.viewsets import ModelViewSet
 
